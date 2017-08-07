@@ -24,6 +24,7 @@ import XMonad.Util.WorkspaceCompare
 import XMonad.Util.Loggers
 import XMonad.Layout.NoBorders(smartBorders)
 import XMonad.Layout.LayoutCombinators hiding ( (|||) )
+import XMonad.Actions.WindowBringer
 import Data.Monoid
 import System.Exit
 import System.IO
@@ -35,8 +36,8 @@ import qualified Data.Map        as M
 -- The preferred terminal program, which is used in a binding below and by
 -- certain contrib modules.
 --
-myTerminal      = "gnome-terminal"
- 
+myTerminal      = "urxvt"
+
 -- Whether focus follows the mouse pointer.
 myFocusFollowsMouse :: Bool
 myFocusFollowsMouse = True
@@ -100,75 +101,79 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm, xK_Return), spawn $ XMonad.terminal conf)
  
     -- launch dmenu
-    , ((modm,               xK_d     ), spawn "exe=`dmenu_path | dmenu_run` && eval \"exec $exe\"")
+    , ((modm,  xK_d), spawn "exe=`dmenu_path | dmenu_run -b ` && eval \"exec $exe\"")
  
     -- launch gmrun
-    , ((modm .|. shiftMask, xK_p     ), spawn "gmrun")
- 
+    , ((modm .|. shiftMask, xK_p), spawn "gmrun")
+
+    -- switch between open applications/windows
+    , ((modm, xK_Tab     ), gotoMenuConfig dmConf)
+    , ((modm .|. shiftMask, xK_Tab     ), bringMenu)
+  
     -- close focused window
-    , ((modm, xK_q     ), kill)
+    , ((modm, xK_q), kill)
  
      -- Rotate through the available layout algorithms
-    , ((modm,               xK_space ), sendMessage NextLayout)
+    , ((modm, xK_space ), sendMessage NextLayout)
  
     --  Reset the layouts on the current workspace to default
     , ((modm .|. shiftMask, xK_space ), setLayout $ XMonad.layoutHook conf)
  
     -- Resize viewed windows to the correct size
-    , ((modm,               xK_n     ), refresh)
+    , ((modm, xK_n), refresh)
  
     -- Move focus to the next window
-    , ((modm,               xK_Right   ), windows W.focusDown)
+    , ((modm, xK_Right), windows W.focusDown)
  
     -- Move focus to the previous window
-    , ((modm,               xK_Left     ), windows W.focusUp  )
+    , ((modm, xK_Left), windows W.focusUp)
 
     -- Move focus to the next window
-    , ((modm,               xK_j     ), windows W.focusDown)
+    , ((modm, xK_j), windows W.focusDown)
  
     -- Move focus to the previous window
-    , ((modm,               xK_k     ), windows W.focusUp  )
+    , ((modm, xK_k), windows W.focusUp)
  
     -- Move focus to the master window
-    , ((modm,               xK_m     ), windows W.focusMaster  )
+    , ((modm, xK_m), windows W.focusMaster)
  
     -- Swap the focused window and the master window
     , ((modm .|. shiftMask, xK_Return), windows W.swapMaster)
  
     -- Swap the focused window with the next window
-    , ((modm .|. shiftMask, xK_Right     ), windows W.swapDown  )
+    , ((modm .|. shiftMask, xK_Right), windows W.swapDown)
  
     -- Swap the focused window with the previous window
-    , ((modm .|. shiftMask, xK_Left     ), windows W.swapUp    )
+    , ((modm .|. shiftMask, xK_Left), windows W.swapUp)
  
     -- Shrink the master area
-    , ((modm,               xK_h     ), sendMessage Shrink)
+    , ((modm,  xK_h), sendMessage Shrink)
  
     -- Expand the master area
-    , ((modm,               xK_l     ), sendMessage Expand)
+    , ((modm,  xK_l), sendMessage Expand)
  
     -- Push window back into tiling
-    , ((modm,               xK_t     ), withFocused $ windows . W.sink)
+    , ((modm,  xK_t), withFocused $ windows . W.sink)
  
     -- Increment the number of windows in the master area
-    , ((modm              , xK_comma ), sendMessage (IncMasterN 1))
+    , ((modm, xK_comma ), sendMessage (IncMasterN 1))
  
     -- Deincrement the number of windows in the master area
-    , ((modm              , xK_period), sendMessage (IncMasterN (-1)))
+    , ((modm, xK_period), sendMessage (IncMasterN (-1)))
  
     -- Toggle the status bar gap
     -- Use this binding with avoidStruts from Hooks.ManageDocks.
     -- See also the statusBar function from Hooks.DynamicLog.
     --
-    , ((modm              , xK_b     ), sendMessage ToggleStruts)
+    , ((modm, xK_b), sendMessage ToggleStruts)
  
     -- Quit xmonad
-    , ((modm .|. shiftMask, xK_Escape     ), io (exitWith ExitSuccess))
+    , ((modm .|. shiftMask, xK_Escape), io (exitWith ExitSuccess))
  
     -- Restart xmonad
-    , ((modm              , xK_Escape     ), spawn "xmonad --recompile; xmonad --restart")
+    , ((modm, xK_Escape), spawn "xmonad --recompile; xmonad --restart")
     , ((modm .|. shiftMask, xK_slash ), spawn ("echo \"" ++ help ++ "\" | xmessage -file -"))
-    ]
+    ]                   
     ++
  
     --
@@ -189,7 +194,6 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     [((m .|. modm, key), screenWorkspace sc >>= flip whenJust (windows . f))
         | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
         , (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
-
     ++
     
     --
@@ -201,6 +205,10 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((0, xF86XK_AudioLowerVolume), spawn "amixer set Master 1%- unmute")
     , ((0, xF86XK_AudioMute), spawn "amixer -q set Master toggle && amixer -q set Headphone toggle")
     ]
+   where dmConf = def { menuCommand = "dmenu"
+                     , menuArgs = ["-b"]
+                     }
+
  
 ------------------------------------------------------------------------
 -- Mouse bindings: default actions bound to mouse events
@@ -311,19 +319,19 @@ myxmobarPP xmproc = def { ppCurrent = xmobarColor "black" "#3c6e8c" . pad -- . w
                         , ppVisible = wrap "(" ")" . pad
                         -- ^ how to print tags of visible but not focused
                         -- workspaces (xinerama only)
-                        , ppHidden =  xmobarColor "gray" "" . pad -- id -- xmobarColor "black" ""
+                        , ppHidden =  xmobarColor "gray" "" . pad
                         -- ^ how to print tags of hidden workspaces which
                         -- contain windows
                         , ppHiddenNoWindows = const ""
                         -- ^ how to print tags of empty hidden workspaces
                         , ppUrgent  = xmobarColor "red" "yellow"
                         -- ^ format to be applied to tags of urgent workspaces.
-                        , ppSep = " | "
+                        , ppSep = "| "
                         -- ^ separator to use between different log sections
                         -- (window name, layout, workspaces)
-                        , ppWsSep = " "
+                        , ppWsSep = ""
                         -- ^ separator to use between workspace tags
-                        , ppTitle = xmobarColor "green" ""
+                        , ppTitle = xmobarColor "green" "" . shorten 40
                         -- ^ window title format
                         , ppTitleSanitize   = xmobarStrip . dzenEscape
                         -- ^  escape / sanitizes input to 'ppTitle'
