@@ -1,0 +1,3 @@
+#+title: XMonad
+
+Custom XMonad configuration
